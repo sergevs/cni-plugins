@@ -26,9 +26,13 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 )
 
-func getPrivChainRules(ip string) [][]string {
+func getPrivChainRules(ingress bool, ip string) [][]string {
 	var rules [][]string
-	rules = append(rules, []string{"-d", ip, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"})
+	if ingress {
+	  rules = append(rules, []string{"-d", ip, "-j", "ACCEPT"})
+	} else {
+	  rules = append(rules, []string{"-d", ip, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"})
+	}
 	rules = append(rules, []string{"-s", ip, "-j", "ACCEPT"})
 	return rules
 }
@@ -91,7 +95,7 @@ func (ib *iptablesBackend) addRules(conf *FirewallNetConf, result *current.Resul
 	rules := make([][]string, 0)
 	for _, ip := range result.IPs {
 		if protoForIP(ip.Address) == proto {
-			rules = append(rules, getPrivChainRules(ipString(ip.Address))...)
+			rules = append(rules, getPrivChainRules(ib.allowIngress, ipString(ip.Address))...)
 		}
 	}
 
@@ -123,7 +127,7 @@ func (ib *iptablesBackend) delRules(conf *FirewallNetConf, result *current.Resul
 	rules := make([][]string, 0)
 	for _, ip := range result.IPs {
 		if protoForIP(ip.Address) == proto {
-			rules = append(rules, getPrivChainRules(ipString(ip.Address))...)
+			rules = append(rules, getPrivChainRules(ib.allowIngress, ipString(ip.Address))...)
 		}
 	}
 
@@ -138,7 +142,7 @@ func (ib *iptablesBackend) checkRules(conf *FirewallNetConf, result *current.Res
 	rules := make([][]string, 0)
 	for _, ip := range result.IPs {
 		if protoForIP(ip.Address) == proto {
-			rules = append(rules, getPrivChainRules(ipString(ip.Address))...)
+			rules = append(rules, getPrivChainRules(ib.allowIngress, ipString(ip.Address))...)
 		}
 	}
 
@@ -211,6 +215,7 @@ type iptablesBackend struct {
 	protos         map[iptables.Protocol]*iptables.IPTables
 	privChainName  string
 	adminChainName string
+	allowIngress   bool
 	ifName         string
 }
 
@@ -219,6 +224,7 @@ var _ FirewallBackend = &iptablesBackend{}
 
 func newIptablesBackend(conf *FirewallNetConf) (FirewallBackend, error) {
 	adminChainName := conf.IptablesAdminChainName
+	allowIngress := conf.AllowIngress
 	if adminChainName == "" {
 		adminChainName = "CNI-ADMIN"
 	}
@@ -226,6 +232,7 @@ func newIptablesBackend(conf *FirewallNetConf) (FirewallBackend, error) {
 	backend := &iptablesBackend{
 		privChainName:  "CNI-FORWARD",
 		adminChainName: adminChainName,
+		allowIngress:   allowIngress,
 		protos:         make(map[iptables.Protocol]*iptables.IPTables),
 	}
 

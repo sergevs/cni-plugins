@@ -42,6 +42,9 @@ type FirewallNetConf struct {
 	// admin rules override chain name that includes the interface name.
 	IptablesAdminChainName string `json:"iptablesAdminChainName,omitempty"`
 
+	// Iptables allow ingress traffic
+	AllowIngress bool `json:"allowIngress"`
+
 	// FirewalldZone is an optional firewalld zone to place the interface into.  If
 	// the firewalld backend is used but the zone is not given, it defaults
 	// to 'trusted'
